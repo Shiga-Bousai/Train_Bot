@@ -1,7 +1,24 @@
 from datetime import datetime, timezone, timedelta
 import feedparser #pip install feedparser
 
+import sys
+args = sys.argv
+gitTest = False
+if args[1] == 'gitTest':
+    gitTest = True
+import os
+sys.path.append(os.path.abspath("../"))
+from pkg.twitter_python import tweet
+from os.path import dirname, abspath
+baseDir = dirname(abspath(__file__))
+tmpPath = f'{baseDir}/tmp.json'
+
+import json
+
 now = datetime.now(timezone(timedelta(hours=9)))
+
+with open(tmpPath) as fp:
+    tmpJson = json.load(fp)
 
 feedData = feedparser.parse("http://api.tetsudo.com/traffic/atom.xml", response_headers={"content-type": "text/xml; charset=utf-8"})
 
@@ -25,7 +42,7 @@ trainData = {
 jrLink = False
 
 for data in feedData["entries"]:
-    if (datetime.strptime(data["updated"], '%Y-%m-%dT%H:%M:%S%z') > now + timedelta(minutes=-10)):
+    if (datetime.strptime(data["updated"], '%Y-%m-%dT%H:%M:%S%z') > datetime.strptime(tmpJson["update"], '%Y/%m/%d %H:%M:%S%z')) or gitTest:
         if (data["title"][:8] == "【東海道新幹線】" and "（JR西日本）" in data["title"]):
             trainData["東海道新幹線"] = True
             jrLink = True
@@ -53,7 +70,7 @@ for data in feedData["entries"]:
 
 print(trainData)
 
-if True in trainData.values():
+if (True in trainData.values() and (now.minute in [0, 30] or trainData != tmpJson["data"])) or gitTest:
     tweetData = f'{str(now.day)}日{str(now.hour)}時{str(now.minute)}分現在以下の路線で遅延等の情報があります。\n\n'
     for data in trainData:
         if trainData[data]:
@@ -69,13 +86,16 @@ if True in trainData.values():
         tweetData += f'京阪電気鉄道 {trainUrl["京阪電気鉄道"]}\n'
     tweetData = tweetData[:-1]
     print(tweetData)
-
-    import sys
-    import os
-    sys.path.append(os.path.abspath("../"))
-
-    from pkg.twitter_python import tweet
-    tweet(tweetData)
+    if not gitTest:
+        tweet(tweetData)
+    elif gitTest:
+        print(tweetData)
+        
+with open(tmpPath, 'w') as fp:
+    json.dump({
+        "update" : now.strftime('%Y/%m/%d %H:%M:%S%z'),
+        "data" : trainData
+    }, fp, ensure_ascii=False, indent=4)
 
 """
 {
