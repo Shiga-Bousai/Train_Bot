@@ -4,7 +4,7 @@ import feedparser #pip install feedparser
 import sys
 args = sys.argv
 gitTest = False
-if args[1] == 'gitTest':
+if args != ['main.py'] and args[1] == 'gitTest':
     gitTest = True
 import os
 sys.path.append(os.path.abspath("../"))
@@ -90,7 +90,7 @@ if (True in trainData.values() and (now.minute in [0, 30] or trainData != tmpJso
         tweet(tweetData)
     elif gitTest:
         print(tweetData)
-        
+
 with open(tmpPath, 'w') as fp:
     json.dump({
         "update" : now.strftime('%Y/%m/%d %H:%M:%S%z'),
